@@ -1,0 +1,12 @@
+div.container {
+  display: flex;
+  flex: 1;
+  height: 100vh;
+  flex-direction: column;
+}
+
+div.rowCenter {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
