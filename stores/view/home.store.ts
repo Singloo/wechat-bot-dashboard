@@ -56,14 +56,14 @@ class HomeStore {
       .catch(err => console.warn(err.message));
   };
   save = async (item: IStrategy) => {
+    const _item = { ...item };
+    delete _item.uniqId;
     if (!item._id) {
-      const _item = { ...item };
-      delete item.uniqId;
       const _id = await this.service.insertOne(_item);
       _item._id = _id;
       this.modifySingleRecord(item, _item);
     } else {
-      await this.service.update(item);
+      await this.service.update({ ..._item, state: 'done' });
     }
     message.success('保存成功');
   };
