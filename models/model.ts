@@ -10,7 +10,7 @@
  */
 
 export interface IStrategy {
-  _id: string | null;
+  _id?: string;
   from: 'friend' | 'group' | 'at' | string;
   condition: string;
   reply: string;

@@ -4,7 +4,7 @@ import { HomeService } from '../../services';
 import {} from '../../utils';
 import { timer, of } from 'rxjs';
 import { catchError, filter, tap, concatMap } from 'rxjs/operators';
-import {} from 'antd';
+import { message } from 'antd';
 configure({
   enforceActions: 'always',
 });
@@ -14,7 +14,6 @@ interface IState {
   strategies?: IStrategy[];
 }
 const STRATEGY_TEMPLATE: IStrategy = {
-  _id: null,
   from: 'friend',
   condition: '',
   reply: '',
@@ -56,7 +55,18 @@ class HomeStore {
       })
       .catch(err => console.warn(err.message));
   };
-
+  save = async (item: IStrategy) => {
+    if (!item._id) {
+      const _item = { ...item };
+      delete item.uniqId;
+      const _id = await this.service.insertOne(_item);
+      _item._id = _id;
+      this.modifySingleRecord(item, _item);
+    } else {
+      await this.service.update(item);
+    }
+    message.success('保存成功');
+  };
   $checkIsActive = (hide: () => void) => {
     this.setState({
       isWaiting: true,
@@ -101,13 +111,19 @@ class HomeStore {
       }),
     });
   };
-  deleteStrategy = (item: IStrategy) => {
+  deleteStrategy = async (item: IStrategy) => {
     const key = item._id ? '_id' : 'uniqId';
     this.setState({
       strategies: this.strategies.filter(o => o[key] !== item[key]),
     });
     if (item._id) {
       // delete from database
+      try {
+        await this.service.delete(item._id);
+        message.success('删除成功~');
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 }

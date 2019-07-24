@@ -31,14 +31,20 @@ class Home extends React.Component<IProps> {
     this.props.home.$checkIsActive(hide);
   };
 
-  _onChangeState = (item: IStrategy, isEditing: boolean) => {
-    if (isEditing) {
-      //save
+  _onChangeState = async (item: IStrategy, isEditing: boolean) => {
+    try {
+      if (isEditing) {
+        await this.props.home.save(item);
+      }
+      this.props.home.modifySingleRecord(item, {
+        state: isEditing ? 'done' : 'editing',
+      } as IStrategy);
+    } catch (err) {
+      console.error(err);
+      message.error('出现了一些不可描述的错误...');
     }
-    this.props.home.modifySingleRecord(item, {
-      state: isEditing ? 'done' : 'editing',
-    } as IStrategy);
   };
+
   render() {
     const { isActive, isWaiting } = this.props.home;
     return (
@@ -83,159 +89,155 @@ class Home extends React.Component<IProps> {
     this.props.home.addNewRecord();
   };
   _renderStrategies = () => {
-    const { strategies, modifySingleRecord, deleteStrategy } = this.props.home;
+    const { strategies } = this.props.home;
     const columns = [
       {
         title: 'from',
         dataIndex: 'from',
         key: 'from',
-        render: (text: string, item: IStrategy) => {
-          const isEditing = item.state === 'editing';
-          return (
-            <Select
-              defaultValue={text}
-              disabled={!isEditing}
-              onChange={(from: string) =>
-                modifySingleRecord(item, {
-                  from,
-                } as IStrategy)
-              }
-            >
-              <Select.Option value={'group'}>Group</Select.Option>
-              <Select.Option value={'at'}>at@</Select.Option>
-              <Select.Option value={'friend'}>Group</Select.Option>
-            </Select>
-          );
-        },
+        render: this._renderFrom,
       },
       {
         title: 'condition',
         dataIndex: 'condition',
         key: 'condition',
-        render: (text: string, item: IStrategy, idx: number) => {
-          const isEditing = item.state === 'editing';
-          return (
-            <Input
-              value={text}
-              contentEditable={isEditing}
-              disabled={!isEditing}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                modifySingleRecord(item, {
-                  condition: e.target.value,
-                } as IStrategy)
-              }
-            />
-          );
-        },
+        render: this._renderTextInput('condition'),
       },
       {
         title: 'reply',
         dataIndex: 'reply',
         key: 'reply',
-        render: (text: string, item: IStrategy) => {
-          const isEditing = item.state === 'editing';
-          return (
-            <Input
-              value={text}
-              contentEditable={isEditing}
-              disabled={!isEditing}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                modifySingleRecord(item, {
-                  reply: e.target.value,
-                } as IStrategy)
-              }
-            />
-          );
-        },
+        render: this._renderTextInput('reply'),
       },
       {
         title: 'type',
         dataIndex: 'type',
         key: 'type',
-        render: (text: string, item: IStrategy) => {
-          const isEditing = item.state === 'editing';
-          const onPress = (nextType: 'reg' | 'keyword') => {
-            modifySingleRecord(item, {
-              type: nextType,
-            } as IStrategy);
-          };
-          return (
-            <div className={'rowCenter'}>
-              <Tag.CheckableTag
-                checked={item.type === 'keyword'}
-                onChange={
-                  isEditing
-                    ? (bool: boolean) => onPress(bool ? 'keyword' : 'reg')
-                    : undefined
-                }
-              >
-                {'Keyword'}
-              </Tag.CheckableTag>
-              <Tag.CheckableTag
-                checked={item.type === 'reg'}
-                onChange={
-                  isEditing
-                    ? (bool: boolean) => onPress(!bool ? 'keyword' : 'reg')
-                    : undefined
-                }
-              >
-                {'Reg'}
-              </Tag.CheckableTag>
-            </div>
-          );
-        },
+        render: this._renderType,
       },
       {
         title: 'actions',
         dataIndex: 'state',
         key: 'state',
-        render: (text: string, item: IStrategy) => {
-          const isEditing = item.state === 'editing';
-          return (
-            <div className={'rowCenter'}>
-              <Button
-                onClick={() => this._onChangeState(item, isEditing)}
-                type={'primary'}
-                ghost={!isEditing}
-                style={{ width: 70 }}
-              >
-                {isEditing ? 'Save' : 'Edit'}
-              </Button>
-              <Icon
-                style={{ marginLeft: 10, color: '#ed5350', fontSize: 25 }}
-                type={'delete'}
-                onClick={() => {
-                  if (item._id) {
-                    Modal.confirm({
-                      title: 'Delete this row?',
-                      onOk: () => deleteStrategy(item),
-                    });
-                  } else {
-                    deleteStrategy(item);
-                  }
-                }}
-              />
-            </div>
-          );
-        },
+        render: this._renderState,
       },
     ];
     return (
       <>
         <Table dataSource={strategies} columns={columns} />
-        <Button onClick={this._insertNewRecord} icon={'plus'} type={'primary'}>
+        <Button
+          onClick={this._insertNewRecord}
+          icon={'plus'}
+          type={'primary'}
+          style={{ borderRadius: 0 }}
+        >
           {'Add a new strategy'}
         </Button>
       </>
     );
   };
-
-  // _renderCard = (item: IStrategy, index: number) => {
-  //   console.log(item);
-  //   return <Table
-  //   dataSource={}
-  //   />
-  // };
+  _renderFrom = (text: string, item: IStrategy) => {
+    const { modifySingleRecord } = this.props.home;
+    const isEditing = item.state === 'editing';
+    return (
+      <Select
+        defaultValue={text}
+        style={{ width: 90 }}
+        disabled={!isEditing}
+        onChange={(from: string) =>
+          modifySingleRecord(item, {
+            from,
+          } as IStrategy)
+        }
+      >
+        <Select.Option value={'group'}>Group</Select.Option>
+        <Select.Option value={'at'}>at@</Select.Option>
+        <Select.Option value={'friend'}>Group</Select.Option>
+      </Select>
+    );
+  };
+  _renderTextInput = (key: keyof IStrategy) => (
+    text: string,
+    item: IStrategy,
+  ) => {
+    const { modifySingleRecord } = this.props.home;
+    const isEditing = item.state === 'editing';
+    return (
+      <Input
+        value={item[key] as string}
+        contentEditable={isEditing}
+        disabled={!isEditing}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          modifySingleRecord(item, {
+            [key]: e.target.value,
+          } as any)
+        }
+      />
+    );
+  };
+  _renderType = (text: string, item: IStrategy) => {
+    const { modifySingleRecord } = this.props.home;
+    const isEditing = item.state === 'editing';
+    const onPress = (nextType: 'reg' | 'keyword') => {
+      modifySingleRecord(item, {
+        type: nextType,
+      } as IStrategy);
+    };
+    return (
+      <div className={'rowCenter'}>
+        <Tag.CheckableTag
+          checked={item.type === 'keyword'}
+          onChange={
+            isEditing
+              ? (bool: boolean) => onPress(bool ? 'keyword' : 'reg')
+              : undefined
+          }
+        >
+          {'Keyword'}
+        </Tag.CheckableTag>
+        <Tag.CheckableTag
+          checked={item.type === 'reg'}
+          onChange={
+            isEditing
+              ? (bool: boolean) => onPress(!bool ? 'keyword' : 'reg')
+              : undefined
+          }
+        >
+          {'Reg'}
+        </Tag.CheckableTag>
+      </div>
+    );
+  };
+  _renderState = (text: string, item: IStrategy) => {
+    const { deleteStrategy } = this.props.home;
+    const isEditing = item.state === 'editing';
+    return (
+      <div className={'rowCenter'}>
+        <Button
+          onClick={() => this._onChangeState(item, isEditing)}
+          type={'primary'}
+          ghost={!isEditing}
+          style={{ width: 70 }}
+        >
+          {isEditing ? 'Save' : 'Edit'}
+        </Button>
+        <Icon
+          style={{ marginLeft: 10, color: '#ed5350', fontSize: 25 }}
+          type={'delete'}
+          onClick={() => {
+            if (item._id) {
+              Modal.confirm({
+                title: 'Delete this row?',
+                onOk: () => deleteStrategy(item),
+              });
+            } else {
+              deleteStrategy(item);
+            }
+          }}
+        />
+      </div>
+    );
+  };
 }
 interface IProps {
   home: HomeStore;
